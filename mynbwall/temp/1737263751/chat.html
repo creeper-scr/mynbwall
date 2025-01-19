@@ -1,0 +1,131 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chat Record</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f4f4f4;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
+            height: 100vh;
+            padding-top: 20px;
+        }
+
+        .chat-container {
+            background-color: white;
+            width: 450px;
+            max-width: 100%;
+            border-radius: 10px;
+            padding: 20px;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+            overflow-y: auto;
+            max-height: 80vh;
+        }
+
+        .message {
+            margin-bottom: 15px;
+            display: flex;
+            flex-direction: column;
+            max-width: 100%;
+        }
+
+        .message-content {
+            margin-top: 5px;
+            padding: 10px;
+            border-radius: 8px;
+            background-color: white; /* 白色气泡背景 */
+            max-width: 75%;
+            word-wrap: break-word;
+            box-shadow: 0px 0px 10px rgba(0, 0, 0, 0.1); /* 气泡的阴影 */
+        }
+
+        img {
+            max-width: 150px;
+            max-height: 150px;
+            border-radius: 5px;
+            cursor: pointer;
+            display: block;
+        }
+
+        .image-container {
+            display: inline-block;
+            text-align: center;
+        }
+
+        .sender-avatar {
+            width: 35px;
+            height: 35px;
+            border-radius: 50%;
+            margin-right: 10px;
+            background-color: white; /* 白色背景 */
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 1.2em;
+            color: #4A90E2; /* 文字颜色 */
+            border: 2px solid #ddd; /* 边框 */
+        }
+
+        .message-container {
+            display: flex;
+            flex-direction: row;
+        }
+
+        .message .sender-avatar {
+            margin-left: 10px;
+        }
+    </style>
+</head>
+<body>
+
+<div class="chat-container">
+    
+        <div class="message">
+            <div class="message-container">
+                <!-- 如果没有头像，使用默认的白色背景 -->
+                <div class="sender-avatar">
+                    
+                        U <!-- 默认显示发送者名字首字母 -->
+                    
+                </div>
+                <div>
+                    <div class="message-content">
+                        
+                            123
+                        
+                    </div>
+                </div>
+            </div>
+        </div>
+    
+        <div class="message">
+            <div class="message-container">
+                <!-- 如果没有头像，使用默认的白色背景 -->
+                <div class="sender-avatar">
+                    
+                        U <!-- 默认显示发送者名字首字母 -->
+                    
+                </div>
+                <div>
+                    <div class="message-content">
+                        
+                            <div class="image-container">
+                                <img src="temp\1737263751\984924A818333E1496E84372E83E824A.jpg" alt="image" onclick="window.open('temp\1737263751\984924A818333E1496E84372E83E824A.jpg')" />
+                            </div>
+                        
+                    </div>
+                </div>
+            </div>
+        </div>
+    
+</div>
+
+</body>
+</html>
