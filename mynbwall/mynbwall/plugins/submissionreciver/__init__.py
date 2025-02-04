@@ -18,8 +18,23 @@ from nonebot.adapters.onebot.v11 import MessageSegment, Bot
 from pyppeteer import launch
 from pdf2image import convert_from_path
 import shutil
+import os
+import asyncio
+import shutil
+from typing import List
+from nonebot import get_plugin_config
+from nonebot.plugin import PluginMetadata
+from nonebot_plugin_waiter import waiter
+from nonebot.rule import to_me
+from nonebot.plugin import on_command
+from nonebot.adapters import Event
+from nonebot.adapters.onebot.v11 import MessageSegment, Bot, Message
+from nonebot.params import CommandArg, ArgPlainText
+from .config import Config, Conf
+import os
 
-from .config import Config
+
+
 
 __plugin_meta__ = PluginMetadata(
     name="submissionReciver",
@@ -29,33 +44,13 @@ __plugin_meta__ = PluginMetadata(
 )
 
 config = get_plugin_config(Config)
+conf = Conf()
+qzone_toolkit_path = os.path.join(os.path.dirname(__file__), 'qzone-toolkit')
 
 reciever = on_command('test', rule=to_me(), priority=5)
 
 # 用于存储收到的所有消息
 received_messages = []
-
-def get_next_folder_name():
-    """
-    获取 temp 文件夹中下一个可用的编号文件夹名称（纯数字递增）
-    """
-    base_folder = "temp"
-    # 确保基础文件夹存在
-    os.makedirs(base_folder, exist_ok=True)
-
-    # 获取所有现有数字文件夹
-    existing_folders = []
-    for f in os.listdir(base_folder):
-        if os.path.isdir(os.path.join(base_folder, f)) and f.isdigit():
-            existing_folders.append(int(f))
-
-    # 计算下一个序号
-    folder_index = 1
-    if existing_folders:
-        folder_index = max(existing_folders) + 1
-
-    # 返回完整路径
-    return os.path.join(base_folder, str(folder_index))
 
 @reciever.handle()
 async def recieve(bot: Bot, event: Event):
@@ -63,7 +58,7 @@ async def recieve(bot: Bot, event: Event):
     folder_name = get_next_folder_name()
     os.makedirs(folder_name, exist_ok=True)
 
-    # 剩余原有代码保持不变...
+    # 接收消息阶段
     await reciever.send("请在接下来的 2 分钟内发送消息")
 
     @waiter(waits=["message"], keep_session=True)
@@ -71,15 +66,14 @@ async def recieve(bot: Bot, event: Event):
         sessionID = event.get_session_id()
         return [event.get_message(), sessionID]
 
-    async for resp in check(timeout=10, default=''):
+    async for resp in check(timeout=5): 
         if not resp:
-            await reciever.send("接收超时")
+            await reciever.send("投稿时间结束，正在渲染稿件")
             break
 
         # 处理消息并保存到列表
-        result = await msg_processer(resp[0], resp[1])  # 传递消息和 sessionID
+        result = await msg_processer(resp[0], resp[1])
         received_messages.append(result)
-        #await reciever.send(f"收到消息: {repr(resp[0])}")
 
     # 超过时间后保存所有消息到 JSON 文件
     await save_to_temp(received_messages, folder_name)
@@ -95,6 +89,7 @@ async def recieve(bot: Bot, event: Event):
     await pdf2jpg(os.path.join(folder_name, 'messages.pdf'))
     await reciever.send(await submission_msg(folder_name))
     await reciever.send("请在一分钟内确认投稿，输入 y 确认或 n 取消")
+
     # 确认阶段
     @waiter(waits=["message"], keep_session=True)
     async def confirm_check(event: Event):
@@ -102,20 +97,18 @@ async def recieve(bot: Bot, event: Event):
         return str(event.get_message()).strip().lower()
 
     try:
-        # 获取确认结果（直接 await 而非 async for）
+        # 使用 async for 获取用户输入
         async for confirm in confirm_check(timeout=60):
-        
             # 获取文件夹编号
             folder_id = os.path.basename(folder_name)
             
             if confirm == "y":
                 # 推送审核
                 await bot.send_group_msg(
-                    group_id=624678719,
+                    group_id=conf.checkgroup,
                     message=MessageSegment.text(f"新稿件（ID: {folder_id}）待审核：\n") 
                     + await submission_msg(folder_name)
                 )
-                await process_submission(folder_name)
                 await reciever.finish(f"✅ 稿件 {folder_id} 已提交审核")
             elif confirm == "n":
                 await cleanup_temp(folder_name)
@@ -127,6 +120,40 @@ async def recieve(bot: Bot, event: Event):
     except asyncio.TimeoutError:
         await cleanup_temp(folder_name)
         await reciever.finish("⏰ 确认超时，投稿流程已终止")
+
+
+
+# 创建删除命令处理器
+deleter = on_command('del', rule=to_me(), priority=5)
+
+@deleter.handle()
+async def handle_delete(bot: Bot, event: Event, args: Message = CommandArg()):
+    # 提取用户输入的参数（稿件编号）
+    param = args.extract_plain_text().strip()
+
+    if param:  # 如果参数存在
+        await delete_submission(param)
+    else:  # 如果没有参数，要求用户输入
+        await deleter.send("请输入要删除的稿件编号")
+        await deleter.got("param", prompt="请输入稿件编号以进行删除：")
+
+@deleter.got("param")
+async def got_delete_param(param: str = ArgPlainText()):
+    # 用户输入了参数后执行删除操作
+    await delete_submission(param)
+
+async def delete_submission(param: str):
+    folder_path = os.path.join("temp", param)
+
+    # 检查文件夹是否存在且编号是数字
+    if os.path.exists(folder_path) and param.isdigit():
+        # 清理文件夹中的所有文件，但保留文件夹
+        await cleanup_temp(folder_path)
+        await deleter.finish(f"✅ 已删除稿件 {param}")
+    else:
+        await deleter.finish(f"⚠️ 稿件 {param} 不存在或编号无效")
+
+
 
 
 def get_next_folder_name():
