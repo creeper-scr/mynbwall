@@ -13,6 +13,8 @@ from nonebot.adapters.onebot.v11 import MessageSegment, Bot
 from pyppeteer import launch
 from pdf2image import convert_from_path
 import shutil
+from typing import Any
+
 
 def get_next_folder_name():
     """
@@ -116,6 +118,7 @@ async def save_to_temp(data, folder_name):
                     all_messages.append(msg)
 
         # 保存到 JSON 文件
+        all_messages = transform_metadata(all_messages)
         file_path = os.path.join(folder_name, "messages.json")
         async with aiofiles.open(file_path, 'w', encoding='utf-8') as f:
             await f.write(json.dumps(all_messages, ensure_ascii=False, indent=4))
@@ -126,6 +129,20 @@ async def save_to_temp(data, folder_name):
     except Exception as e:
         print(f"保存文件时出错: {e}")
         return f"保存文件时出错: {e}"
+    
+def transform_metadata(items):
+    transformed = []
+    for item in items:
+        if item['type'] == 'metadata':
+            new_item = {
+                'type': 'metadata',
+                'sessionID': item['sessionID'],
+                'is_hidden': False
+            }
+            transformed.append(new_item)
+        else:
+            transformed.append(item)
+    return transformed
 
 async def download_all_media(messages, folder_name):
     """
@@ -206,7 +223,10 @@ async def json2html(json_path):
     # 解析消息内容
     for item in data:
         if item.get("type") == "metadata":
-            sessionID = item.get("sessionID", "")
+            if item.get("is_hidden") == True:
+                sessionID = "匿名"
+            else:
+                sessionID = item.get("sessionID", "")
             continue
 
         if item.get("type") == "text":
